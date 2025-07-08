@@ -7,6 +7,8 @@ from backend.summarizer import summarize_batch
 from fastapi import Query
 from datetime import datetime
 from typing import Optional
+from fastapi import Form
+from fastapi import APIRouter
 
 # In-memory news store: list of dicts with source, category, headline, url, timestamp, summary
 news_store = []
@@ -49,6 +51,15 @@ async def ingest(payload: Any = Body(...)):
         "summaries": summaries
     })
 
+@app.post("/summarize")
+async def summarize_news(news_content: str = Form(...)):
+    """
+    Summarize a long news article or Reddit post into 2-3 factual, plain English lines (no emojis, headlines, or jargon).
+    """
+    from backend.summarizer import summarize_text
+    summary = summarize_text(news_content)
+    return {"summary": summary}
+
 @app.get("/digest")
 async def digest(category: Optional[str] = Query(None)):
     # Filter by category if provided (case-insensitive, 'All' returns all)
@@ -59,4 +70,25 @@ async def digest(category: Optional[str] = Query(None)):
     # Sort by timestamp descending (assume ISO format)
     sorted_items = sorted(filtered, key=lambda x: x["timestamp"], reverse=True)
     # Return up to 5 most recent
-    return {"summaries": sorted_items[:5]} 
+    return {"summaries": sorted_items[:5]}
+
+class RedditPost(BaseModel):
+    headline: str
+    selftext: str
+    url: str
+    timestamp: str
+
+@app.post("/reddit_summarize")
+async def reddit_summarize(posts: List[RedditPost]):
+    from backend.summarizer import summarize_batch
+    contents = [post.selftext for post in posts]
+    summaries = summarize_batch(contents)
+    result = []
+    for post, summary in zip(posts, summaries):
+        result.append({
+            "headline": post.headline,
+            "summary": summary,
+            "url": post.url,
+            "timestamp": post.timestamp
+        })
+    return {"summaries": result} 

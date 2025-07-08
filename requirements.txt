@@ -5,3 +5,4 @@ transformers
 torch 
 streamlit
 requests 
+# Uses facebook/bart-large-cnn for summarization 
