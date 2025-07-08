@@ -1,7 +1,15 @@
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
-from typing import List
+from typing import List, Any
 from fastapi.responses import JSONResponse
+from fastapi import Body
+from backend.summarizer import summarize_batch
+from fastapi import Query
+from datetime import datetime
+from typing import Optional
+
+# In-memory news store: list of dicts with source, category, headline, url, timestamp, summary
+news_store = []
 
 app = FastAPI()
 
@@ -13,9 +21,42 @@ class IngestItem(BaseModel):
     timestamp: str  # ISO format
 
 @app.post("/ingest")
-async def ingest(items: List[IngestItem]):
-    for item in items:
-        print(f"[{item.category}] {item.headline} ({item.source})")
-        print(f"🔗 {item.url}")
-        print(f"🕒 {item.timestamp}")
-    return JSONResponse(content={"status": "success", "received": len(items)}) 
+async def ingest(payload: Any = Body(...)):
+    # Handle possible '=' key wrapping
+    items_data = payload.get("=", payload) if isinstance(payload, dict) else payload
+    items = [IngestItem(**item) for item in items_data]
+    headlines = [item.headline for item in items]
+    summaries = summarize_batch(headlines)
+    for item, summary in zip(items, summaries):
+        print(f"Category: {item.category}")
+        print(f"Headline: {item.headline}")
+        print(f"Source: {item.source}")
+        print(f"URL: {item.url}")
+        print(f"Timestamp: {item.timestamp}")
+        print(f"Summary: {summary}\n")
+        # Add to in-memory store
+        news_store.append({
+            "source": item.source,
+            "category": item.category,
+            "headline": item.headline,
+            "url": item.url,
+            "timestamp": item.timestamp,
+            "summary": summary
+        })
+    return JSONResponse(content={
+        "status": "success",
+        "received": len(items),
+        "summaries": summaries
+    })
+
+@app.get("/digest")
+async def digest(category: Optional[str] = Query(None)):
+    # Filter by category if provided (case-insensitive, 'All' returns all)
+    if category and category.lower() != "all":
+        filtered = [item for item in news_store if item["category"].lower() == category.lower()]
+    else:
+        filtered = news_store
+    # Sort by timestamp descending (assume ISO format)
+    sorted_items = sorted(filtered, key=lambda x: x["timestamp"], reverse=True)
+    # Return up to 5 most recent
+    return {"summaries": sorted_items[:5]} 
