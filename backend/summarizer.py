@@ -12,10 +12,15 @@ model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME).to(device)
 
 def summarize_text(text: str) -> str:
     """
-    Summarize a single news string into 2-3 plain English lines.
+    Summarize a single news string into 2-3 plain English lines, no headline, no emojis, include stats/facts if present, easy to understand.
     """
-    # T5 expects a prefix for summarization
-    input_text = f"summarize: {text.strip()}"
+    input_text = (
+        "Summarize the following news post in 2-3 plain English lines. "
+        "Do not copy the headline. Do not use emojis. "
+        "Include key stats or facts if present. "
+        "The summary should be easy to understand and factual: "
+        f"{text.strip()}"
+    )
     inputs = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True).to(device)
     summary_ids = model.generate(
         inputs,
@@ -32,9 +37,15 @@ def summarize_text(text: str) -> str:
 
 def summarize_batch(texts: List[str]) -> List[str]:
     """
-    Summarize a batch of news strings into 2-3 plain English lines each.
+    Summarize a batch of news strings into 2-3 plain English lines each, no headline, no emojis, include stats/facts if present, easy to understand.
     """
-    input_texts = [f"summarize: {t.strip()}" for t in texts]
+    input_texts = [
+        "Summarize the following news post in 2-3 plain English lines. "
+        "Do not copy the headline. Do not use emojis. "
+        "Include key stats or facts if present. "
+        "The summary should be easy to understand and factual: " + t.strip()
+        for t in texts
+    ]
     inputs = tokenizer(input_texts, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
     summary_ids = model.generate(
         inputs["input_ids"],

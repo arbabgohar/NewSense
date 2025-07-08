@@ -105,13 +105,9 @@ def format_timestamp(timestamp: str) -> str:
         return timestamp
 
 def render_news_card(item: Dict[str, Any]) -> None:
-    """Render a single news card"""
-    category_emoji = CATEGORIES.get(item.get("category", "Unknown"), "📰")
-    
+    """Render a single news card with only the summary, no headline or emojis"""
     st.markdown(f"""
     <div class="news-card">
-        <div class="category-badge">{category_emoji} {item.get('category', 'Unknown')}</div>
-        <div class="headline">{item.get('headline', 'No headline')}</div>
         <div class="summary">{item.get('summary', 'No summary available')}</div>
         <div class="meta">
             <span>📰 {item.get('source', 'Unknown source')}</span>

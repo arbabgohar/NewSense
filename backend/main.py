@@ -19,26 +19,26 @@ class IngestItem(BaseModel):
     headline: str
     url: str
     timestamp: str  # ISO format
+    content: str = None  # Optional full post content
 
 @app.post("/ingest")
 async def ingest(payload: Any = Body(...)):
     # Handle possible '=' key wrapping
     items_data = payload.get("=", payload) if isinstance(payload, dict) else payload
     items = [IngestItem(**item) for item in items_data]
-    headlines = [item.headline for item in items]
-    summaries = summarize_batch(headlines)
+    # Use content if available, else headline
+    texts_to_summarize = [item.content if item.content else item.headline for item in items]
+    summaries = summarize_batch(texts_to_summarize)
     for item, summary in zip(items, summaries):
         print(f"Category: {item.category}")
-        print(f"Headline: {item.headline}")
         print(f"Source: {item.source}")
         print(f"URL: {item.url}")
         print(f"Timestamp: {item.timestamp}")
         print(f"Summary: {summary}\n")
-        # Add to in-memory store
+        # Add to in-memory store (no headline, just summary)
         news_store.append({
             "source": item.source,
             "category": item.category,
-            "headline": item.headline,
             "url": item.url,
             "timestamp": item.timestamp,
             "summary": summary
